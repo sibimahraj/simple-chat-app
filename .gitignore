@@ -469,3 +469,10 @@ describe("DropDownModel Component", () => {
       34 |       );
       35 |       setField(stageComponents);
       36 |     }
+
+jest.mock("../selection-box/selection-box.util", () => ({
+    getFields: jest.fn(() => [
+        { field: "MockedField1" },
+        { field: "MockedField2" },
+    ]),
+}));
