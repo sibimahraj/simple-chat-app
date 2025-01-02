@@ -457,3 +457,15 @@ describe("DropDownModel Component", () => {
     expect(screen.queryByText("601")).not.toBeNull();
   });
 });
+
+
+
+    TypeError: (0 , _selectionBox2.getFields) is not a function
+
+      31 |     if (props.logicalFieldName === 'credit_into') {
+      32 |       const stageComponents = dispatch(
+    > 33 |         getFields(stageSelector, props.selectedValue[0].CODE_VALUE, props.logicalFieldName)
+         |                  ^
+      34 |       );
+      35 |       setField(stageComponents);
+      36 |     }
