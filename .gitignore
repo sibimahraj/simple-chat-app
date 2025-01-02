@@ -234,3 +234,13 @@ describe("DropDownModel Component", () => {
     expect(labelVisibility).not.toBeNull();
   });
 });
+
+ Actions must be plain objects. Use custom middleware for async actions.
+
+      30 |   useEffect(() => {
+      31 |     if (props.logicalFieldName === 'credit_into') {
+    > 32 |       const stageComponents = dispatch(
+         |                               ^
+      33 |         getFields(stageSelector, props.selectedValue[0].CODE_VALUE, props.logicalFieldName)
+      34 |       );
+      35 |       setField(stageComponents);
