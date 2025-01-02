@@ -476,3 +476,13 @@ jest.mock("../selection-box/selection-box.util", () => ({
         { field: "MockedField2" },
     ]),
 }));
+
+jest.mock("../selection-box/selection-box.util", () => ({
+    getFields: jest.fn(() => ({
+        type: "GET_FIELDS",
+        payload: [
+            { field: "MockedField1" },
+            { field: "MockedField2" },
+        ],
+    })),
+}));
