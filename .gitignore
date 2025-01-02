@@ -244,3 +244,112 @@ describe("DropDownModel Component", () => {
       33 |         getFields(stageSelector, props.selectedValue[0].CODE_VALUE, props.logicalFieldName)
       34 |       );
       35 |       setField(stageComponents);
+
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "redux-mock-store";
+import DropDownModel from "./dropdown-model";
+
+// Mock imports
+jest.mock("../../../modules/dashboard/fields/renderer", () => jest.fn());
+jest.mock("../selection-box/selection-box.util", () => ({
+  getFields: jest.fn(() => [{ field: "MockedField" }]), // Mocked return value
+}));
+jest.mock("../../../utils/common/change.utils", () => ({
+  isFieldUpdate: jest.fn(),
+}));
+
+const mockStore = configureStore([]);
+
+describe("DropDownModel Component", () => {
+  let store: any;
+  let props: any;
+  let mockDispatch: jest.Mock;
+
+  beforeEach(() => {
+    mockDispatch = jest.fn();
+
+    store = mockStore({
+      stages: {
+        stages: [
+          {
+            stageInfo: {
+              products: [{ product_type: "601" }],
+            },
+          },
+        ],
+        userInput: {
+          applicants: [],
+        },
+      },
+    });
+
+    props = {
+      logicalFieldName: "credit_into",
+      selectedOption: [
+        { CODE_VALUE: "Option1", CODE_DESC: "Option 1", checked: false },
+        { CODE_VALUE: "Other Bank Account", CODE_DESC: "Other Bank Account", checked: false },
+      ],
+      selectedValue: [{ CODE_VALUE: "Value1" }],
+      label: "Test Label",
+      addUserInput: jest.fn(),
+      close: jest.fn(),
+      handleCallback: jest.fn(),
+      handleFieldDispatch: jest.fn(),
+      value: {},
+    };
+
+    jest.spyOn(React, "useDispatch").mockReturnValue(mockDispatch); // Mock dispatch
+  });
+
+  const renderComponent = () =>
+    render(
+      <Provider store={store}>
+        <DropDownModel {...props} />
+      </Provider>
+    );
+
+  it("renders the dropdown component with the correct label", () => {
+    renderComponent();
+    expect(screen.getByText("Test Label")).toBeInTheDocument();
+  });
+
+  it("dispatches getFields when logicalFieldName is 'credit_into'", () => {
+    renderComponent();
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.any(Function) // Ensures getFields is dispatched
+    );
+  });
+
+  it("renders options as radio buttons", () => {
+    renderComponent();
+    const options = screen.getAllByRole("radio");
+    expect(options).toHaveLength(props.selectedOption.length);
+  });
+
+  it("calls addUserInput when an option is selected", () => {
+    renderComponent();
+    const firstOption = screen.getByLabelText("Option 1");
+    fireEvent.click(firstOption);
+    expect(props.addUserInput).toHaveBeenCalledWith(props.selectedOption[0]);
+  });
+
+  it("calls the close function when close button is clicked", () => {
+    renderComponent();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    fireEvent.click(closeButton);
+    expect(props.close).toHaveBeenCalled();
+  });
+
+  it("renders additional fields when logicalFieldName is 'credit_into'", () => {
+    renderComponent();
+    expect(screen.getByText("MockedField")).toBeInTheDocument();
+  });
+
+  it("renders label visibility based on product type", () => {
+    renderComponent();
+    const labelVisibility = screen.queryByText("601");
+    expect(labelVisibility).not.toBeNull();
+  });
+});
