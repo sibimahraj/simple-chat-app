@@ -353,3 +353,107 @@ describe("DropDownModel Component", () => {
     expect(labelVisibility).not.toBeNull();
   });
 });
+
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "redux-mock-store";
+import thunk from "redux-thunk";
+import DropDownModel from "./dropdown-model";
+import { fetchFields } from "../selection-box/selection-box.util"; // Action creator
+
+jest.mock("../selection-box/selection-box.util", () => ({
+  fetchFields: jest.fn(() => async (dispatch) => {
+    dispatch({ type: "SET_FIELDS", payload: [{ field: "MockedField" }] });
+  }),
+}));
+
+const mockStore = configureStore([thunk]);
+
+describe("DropDownModel Component", () => {
+  let store: any;
+  let props: any;
+
+  beforeEach(() => {
+    store = mockStore({
+      stages: {
+        stages: [
+          {
+            stageInfo: {
+              products: [{ product_type: "601" }],
+            },
+          },
+        ],
+        userInput: {
+          applicants: [],
+        },
+      },
+    });
+
+    props = {
+      logicalFieldName: "credit_into",
+      selectedOption: [
+        { CODE_VALUE: "Option1", CODE_DESC: "Option 1", checked: false },
+        { CODE_VALUE: "Other Bank Account", CODE_DESC: "Other Bank Account", checked: false },
+      ],
+      selectedValue: [{ CODE_VALUE: "Value1" }],
+      label: "Test Label",
+      addUserInput: jest.fn(),
+      close: jest.fn(),
+      handleCallback: jest.fn(),
+      handleFieldDispatch: jest.fn(),
+      value: {},
+    };
+  });
+
+  const renderComponent = () =>
+    render(
+      <Provider store={store}>
+        <DropDownModel {...props} />
+      </Provider>
+    );
+
+  it("renders the dropdown component with the correct label", () => {
+    renderComponent();
+    expect(screen.getByText("Test Label")).toBeInTheDocument();
+  });
+
+  it("dispatches fetchFields when logicalFieldName is 'credit_into'", () => {
+    renderComponent();
+    expect(fetchFields).toHaveBeenCalledWith(
+      store.getState().stages.stages,
+      props.selectedValue[0].CODE_VALUE,
+      props.logicalFieldName
+    );
+  });
+
+  it("renders options as radio buttons", () => {
+    renderComponent();
+    const options = screen.getAllByRole("radio");
+    expect(options).toHaveLength(props.selectedOption.length);
+  });
+
+  it("calls addUserInput when an option is selected", () => {
+    renderComponent();
+    const firstOption = screen.getByLabelText("Option 1");
+    fireEvent.click(firstOption);
+    expect(props.addUserInput).toHaveBeenCalledWith(props.selectedOption[0]);
+  });
+
+  it("calls the close function when the close button is clicked", () => {
+    renderComponent();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    fireEvent.click(closeButton);
+    expect(props.close).toHaveBeenCalled();
+  });
+
+  it("renders additional fields when logicalFieldName is 'credit_into'", () => {
+    renderComponent();
+    expect(screen.getByText("MockedField")).toBeInTheDocument();
+  });
+
+  it("renders label visibility based on product type", () => {
+    renderComponent();
+    expect(screen.queryByText("601")).not.toBeNull();
+  });
+});
