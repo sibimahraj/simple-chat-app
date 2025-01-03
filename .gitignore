@@ -449,3 +449,14 @@ jest.mock("react-redux", () => ({
 
       at Object.mockReturnValue (src/shared/components/button-group/button-group.test.tsx:70:46)
 
+
+ TypeError: (0 , _change.fieldIdAppend) is not a function
+
+      162 |     <>
+      163 |     <div>
+    > 164 |       <div className="button-group" id={fieldIdAppend(props)}>
+          |                                                      ^
+      165 |         <label className="label" htmlFor={props.data.logical_field_name}>
+      166 |           {props.data.rwb_label_name}
+      167 |         </label>
+
