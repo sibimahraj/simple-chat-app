@@ -372,3 +372,29 @@ describe("ButtonGroup Component", () => {
       at Object.require (src/shared/components/model/model.tsx:4:1)
       at Object.require (src/shared/components/loan-details-info/loan-details-info.tsx:8:1)
       at Object.require (src/shared/components/button-group/button-group.tsx:11:1)
+
+
+jest.mock("../../../utils/common/change.utils", () => ({
+  fieldIdAppend: jest.fn(() => "mockedFieldId"),
+  isFieldUpdate: jest.fn(),
+  getUrl: {
+    getUpdatedStage: jest.fn(() => ({
+      updatedStageInputs: [
+        {
+          stageId: "mockedStageId",
+          applicants: { required_annual_income_a_1: "50000" },
+        },
+      ],
+    })),
+  },
+  isFieldValueUpdate: jest.fn(),
+  authenticateType: jest.fn(() => "mockedFlowType"), // Mocked authenticateType
+}));
+
+jest.mock("../../../services/validation-service", () => ({
+  formateCurrency: jest.fn((value) => `SGD ${value}`),
+}));
+
+jest.mock("../../../shared/components/loan-details-info/loan-details-info", () => () => (
+  <div>Mocked LoanDetailsInfo</div>
+));
