@@ -273,3 +273,15 @@ describe("DynamicModel Component", () => {
       at Object.require (src/services/common-service.ts:2:1)
       at Object.require (src/shared/components/model/dynamic-model.tsx:6:1)
       at Object.require (src/shared/components/model/dynamic-model.test.tsx:5:1)
+
+ Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: undefined. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
+
+    Check the render method of `DynamicModel`.
+
+      89 |
+      90 |   it("should render the DynamicModel component", () => {
+    > 91 |     render(
+         |           ^
+      92 |       <Provider store={store}>
+      93 |         <DynamicModel errorList={mockErrorList} />
+      94 |       </Provider>
