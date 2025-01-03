@@ -1,431 +1,113 @@
-import React, { useState, useEffect } from "react";
-import "./close.scss";
-import PopupModel from "../popup-model/popup-model";
+import React from "react";
+import "./model.scss";
+import { KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
 import { useDispatch, useSelector } from "react-redux";
-import {KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
+import { errorAction } from "../../../utils/store/error-slice";
+import {
+  dispatchLoader,
+  redirectingToIbanking,
+} from "../../../services/common-service";
+import DOMPurify from "dompurify";
 import { getUrl } from "../../../utils/common/change.utils";
-import { submitRequest } from "../../../modules/dashboard/fields/fields.utils";
-import trackEvents from "../../../services/track-events";
-import { redirectingToIbanking } from "../../../services/common-service";
-import closeInfo from "../../../assets/_json/close.json";
+import { Player } from "@lottiefiles/react-lottie-player";
+import lottieSrc from "../../../assets/_json/lottie/oops.json";
 
-const Close = (props:KeyWithAnyModel) => {
-  const [displayPopup, setdisplayPopup] = useState(false);
+const DynamicModel = (props: KeyWithAnyModel) => {
+  const modelData = props.errorList;
   const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
-  const lovSelector = useSelector((state: StoreModel) => state.lov);
-  const userExitDetails = { emailId: null, mobile: null, appRef: null };
-  const [userDetails, setUserDetails] = useState(userExitDetails);
   const dispatch = useDispatch();
-  const applicantsSelector = useSelector(
-    (state: StoreModel) => state.stages.userInput.applicants
-  );
-  const valueSelector = useSelector((state: StoreModel) => state.valueUpdate);
-  const applicationJourney = useSelector(
-    (state: StoreModel) => state.stages.journeyType
-  );
-  const userInputSelector = useSelector(
-    (state: StoreModel) => state.stages.userInput
-  );
-  const errorSelector = useSelector((state: StoreModel) => state.error);
-  const bancaSelector = useSelector(
-    (state: StoreModel) => state.bancaList.bancaDetails
-  );
-
-  useEffect(() => {
-    if (stageSelector && stageSelector.length > 0 ) {
-      if (stageSelector[0].stageInfo.applicants.email_a_1 !== null) {
-        setUserDetails((preuserDetails: any) => {
-          return {
-            ...preuserDetails,
-            emailId: stageSelector[0].stageInfo.applicants.email_a_1,
-            mobile: stageSelector[0].stageInfo.applicants.mobile_number_a_1,
-          };
-        });
-      }
+  const handlebuttonClick = () => {
+    if (props.errorList.error_type === "CancelApplication" || props.errorList.error_type === "cancelResume") {
       if (
-        stageSelector[0].stageInfo.application.application_reference !== null
+        (getUrl.getParameterByName("SSCode") || (getUrl.getUpdatedStage().SScode != null && getUrl.getUpdatedStage().SScode !== "")|| getUrl.getParameterByName('transfer-token') ||  getUrl.getUpdatedStage().ccplChannel=== "IBK" || getUrl.getUpdatedStage().ccplChannel=== "MBNK") || 
+        (stageSelector && stageSelector[0] && stageSelector[0].stageInfo  && 
+          stageSelector[0].stageInfo.applicants && (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM"))
       ) {
-        setUserDetails((preuserDetails: any) => {
-          return {
-            ...preuserDetails,
-            appRef: getUrl.getChannelRefNo().applicationRefNo!,
-          };
-        });
-      }
-    }
-  }, [stageSelector]);
-
-  const logout = () => {
-    setdisplayPopup(true);
-    trackEvents.triggerAdobeEvent("ctaClick", "Close:formAbandonment");
-    trackEvents.triggerAdobeEvent("popupViewed", closeInfo.closeParameters.exitAppText);
-  };
-
-  const withoutSaveAndExit = () => {
-    trackEvents.triggerAdobeEvent("formAbandonment", "Exit");
-    if (
-      stageSelector && 
-      stageSelector.length > 0  &&
-     (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM")
-    ) {
-      if (getUrl.getParameterByName("source") === "scm") {
-        //Ibanking redirection for app
-        const redirectUrl = getUrl.getParameterByName('transfer-token') ? `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}` : `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
-        window.location.href = redirectUrl;
-      }  else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
-        const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
-        window.location.href = redirectUrl;
-      } else {
-        redirectingToIbanking();
-      }
-    } else {
-      window.location.href = `${process.env.REACT_APP_HOME_PAGE_URL}`;
-    }
-  };
-
-  const withSaveAndExit = async () => {
-    const isPreserveCall = true;
-    const otpAuth = false;
-    const isExit = true
-    dispatch(
-      await submitRequest(
-        applicantsSelector,
-        stageSelector[0],
-        valueSelector,
-        applicationJourney,
-        userInputSelector,
-        lovSelector,
-        errorSelector,
-        otpAuth,
-        isPreserveCall,
-        isExit,
-        bancaSelector
-      )
-    ).then((response:any)=>{
-      if(response){
-        if (
-          stageSelector &&
-          (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM")
-        ) {
-          if (getUrl.getParameterByName("source") === "scm") {
-            //Ibanking redirection for app
-            window.location.href = `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
-          } else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
-            const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
-            window.location.href = redirectUrl;
-          } else {
-            redirectingToIbanking();
-          }
+        if (getUrl.getParameterByName("source") === "scm") {
+          //Ibanking redirection for app
+          window.location.href = `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
+        } else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
+          const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
+          window.location.href = redirectUrl;
         } else {
+          redirectingToIbanking();
+        }
+      } else {
+        if(props.errorList.error_type === "cancelResume"){
           window.location.href = `${process.env.REACT_APP_RESUME_URL}`;
+        }else{
+          window.location.href = `${process.env.REACT_APP_HOME_PAGE_URL}`;
         }
       }
-    })
-    
+    } else if (props.handlebuttonClick) {
+      props.handlebuttonClick();
+    } else {
+      dispatch(dispatchLoader(false));
+      dispatch(errorAction.getExceptionList([]));
+    }
   };
 
-  const closePopup = (e: React.MouseEvent<HTMLElement>) => {
-    trackEvents.triggerAdobeEvent("ctaClick", "Cancel:formAbandonment");
-    setdisplayPopup(false);
-    e.stopPropagation();
+  const getMarkup = (content: any) => {
+    return {
+      __html: DOMPurify.sanitize(content),
+    };
   };
 
   return (
     <>
-      <div className="close" onClick={logout}>
-        {props.authType !== 'resume' && displayPopup && (
-          <PopupModel displayPopup={displayPopup}>
-            <div className="closeModal__container">
-              <div className="closeModal__img"></div>
-              {(stageSelector[0].stageId === "ssf-1" ||
-                stageSelector[0].stageId === "ssf-2") && (
-                <div className="closeModal__content">
-                  <div className="closeModal__header">
-                    {closeInfo.closeMessage.headText}
-                  </div>
-                  <div>{closeInfo.closeWithoutSave.exitAppText}</div>
-                </div>
-              )}
-              {stageSelector[0].stageId !== "ssf-1" &&
-                stageSelector[0].stageId !== "ssf-2" && (
-                  <div className="closeModal__content">
-                    <div>{closeInfo.closeParameters.exitAppText}</div>
-                    <div>
-                      {closeInfo.closeMessage.completLaterText}{" "}
-                      {closeInfo.closeMessage.linkText} {closeInfo.closeParameters.tobeComplete}
-                    </div>
-                    <div className="user__details">
-                      {userDetails.emailId !== null ? (
-                        <p>
-                          Email: <span>{userDetails.emailId}</span>
-                        </p>
-                      ) : (
-                        ""
-                      )}
-                      {userDetails.mobile !== null ? (
-                        <p>
-                          Mobile: <span>+{userDetails.mobile}</span>
-                        </p>
-                      ) : (
-                        ""
-                      )}
-                    </div>
-                    {userDetails.appRef !== null &&
-                    userDetails.appRef !== "" ? (
-                      <div className="app__ref">
-                        Ref No: {userDetails.appRef}
-                      </div>
-                    ) : (
-                      ""
-                    )}
-                  </div>
-                )}
-              <div className="closeModal__footer">
-                {(stageSelector[0].stageId === "ssf-1" ||
-                  stageSelector[0].stageId === "ssf-2") && (
-                  <button
-                    className="withoutSavenExit__btn"
-                    onClick={withoutSaveAndExit}
-                  >
-                    Yes
-                  </button>
-                )}
-                {stageSelector[0].stageId !== "ssf-1" &&
-                  stageSelector[0].stageId !== "ssf-2" && (
-                    <button
-                      className="withoutSavenExit__btn"
-                      onClick={withSaveAndExit}
-                    >
-                      Exit
-                    </button>
-                  )}
-                <button
-                  className="withSavenExit__btn"
-                  onClick={(e) => closePopup(e)}
-                >
-                  Cancel
-                </button>
-              </div>
+      {modelData && modelData && (
+        <div className="popup">
+          <div className="popup__container">
+            <div className="waring__icon">
+              <Player src={lottieSrc} className="player" loop autoplay />
             </div>
-          </PopupModel>
-        )}
-        {props.authType === 'resume' && displayPopup && (
-          <PopupModel displayPopup={displayPopup}>
-          <div className="closeModal__container">
-            <div className="closeModal__img"></div>
-              <div className="closeModal__content">
-                <div className="closeModal__header">
-                  {closeInfo.closeMessage.headText}
-                </div>
+            <div className="popup__info">
+              {modelData.error_header && (
+                <>
+                  {modelData.errorList &&
+                    modelData.errorList.application_reference && (
+                      <div className="app__ref">
+                        APPLICATION NO:{" "}
+                        {modelData.errorList.application_reference}
+                      </div>
+                    )}
+                  <div className="popup__info__head">
+                    {modelData.error_header}
+                  </div>
+                </>
+              )}
+              <div className="popup__info__desc">
+                {modelData.errorList.errors.map(
+                  (content: KeyWithAnyModel, index: number) => {
+                    return (
+                      <p key={`${content}${index}`}>
+                        {content.detail ? (
+                          <span
+                            dangerouslySetInnerHTML={getMarkup(content.detail)}
+                          />
+                        ) : (
+                          "Something went wrong!"
+                        )}
+                      </p>
+                    );
+                  }
+                )}
+                {modelData.error_button && (
+                  <p
+                    className="btn"
+                    onClick={() => handlebuttonClick()}
+                    key={`${modelData.error_button}`}
+                  >
+                    {modelData.error_button}
+                  </p>
+                )}
               </div>
-            <div className="closeModal__footer">
-                <button
-                  className="withoutSavenExit__btn"
-                  onClick={withoutSaveAndExit}
-                >
-                  OK
-                </button>
-              
-              <button
-                className="withSavenExit__btn"
-                onClick={(e) => closePopup(e)}
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        </PopupModel>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 };
 
-export default Close;
-
-
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { Provider } from "react-redux";
-import configureStore from "redux-mock-store";
-import Close from "../close";
-import trackEvents from "../../../services/track-events";
-import { submitRequest } from "../../../modules/dashboard/fields/fields.utils";
-
-jest.mock("../../../services/track-events", () => ({
-  triggerAdobeEvent: jest.fn(),
-}));
-
-jest.mock("../../../utils/common/change.utils", () => ({
-  getUrl: {
-    getParameterByName: jest.fn(),
-    getUpdatedStage: jest.fn(() => ({
-      ccplChannel: "MBNK",
-    })),
-    getChannelRefNo: jest.fn(() => ({
-      applicationRefNo: "12345",
-    })),
-  },
-}));
-
-jest.mock("../../../modules/dashboard/fields/fields.utils", () => ({
-  submitRequest: jest.fn(() => Promise.resolve(true)),
-}));
-
-jest.mock("../../../services/common-service", () => ({
-  redirectingToIbanking: jest.fn(),
-}));
-
-const mockStore = configureStore([]);
-
-describe("Close Component", () => {
-  let store: any;
-
-  beforeEach(() => {
-    store = mockStore({
-      stages: {
-        stages: [
-          {
-            stageInfo: {
-              applicants: {
-                email_a_1: "test@example.com",
-                mobile_number_a_1: "1234567890",
-                auth_mode_a_1: "IX",
-              },
-              application: {
-                application_reference: "appRef123",
-              },
-            },
-            stageId: "ssf-1",
-          },
-        ],
-        userInput: {},
-        journeyType: "mockJourney",
-      },
-      lov: {},
-      valueUpdate: {},
-      error: {},
-      bancaList: {
-        bancaDetails: {},
-      },
-    });
-  });
-
-  it("should render the Close component", () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    expect(screen.getByText(/Close/)).toBeInTheDocument();
-  });
-
-  it("should open the popup on logout click", () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    const closeButton = screen.getByText(/Close/);
-    fireEvent.click(closeButton);
-
-    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
-      "ctaClick",
-      "Close:formAbandonment"
-    );
-    expect(screen.getByText(/Cancel:formAbandonment/)).toBeInTheDocument();
-  });
-
-  it("should trigger the withoutSaveAndExit action", () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    const closeButton = screen.getByText(/Close/);
-    fireEvent.click(closeButton);
-
-    const withoutSaveButton = screen.getByText(/Yes/);
-    fireEvent.click(withoutSaveButton);
-
-    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
-      "formAbandonment",
-      "Exit"
-    );
-  });
-
-  it("should trigger the withSaveAndExit action", async () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    const closeButton = screen.getByText(/Close/);
-    fireEvent.click(closeButton);
-
-    const withSaveButton = screen.getByText(/Exit/);
-    fireEvent.click(withSaveButton);
-
-    expect(submitRequest).toHaveBeenCalled();
-    await expect(submitRequest).resolves.toBe(true);
-  });
-
-  it("should close the popup on Cancel click", () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    const closeButton = screen.getByText(/Close/);
-    fireEvent.click(closeButton);
-
-    const cancelButton = screen.getByText(/Cancel/);
-    fireEvent.click(cancelButton);
-
-    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
-      "ctaClick",
-      "Cancel:formAbandonment"
-    );
-  });
-
-  it("should display user details correctly", () => {
-    render(
-      <Provider store={store}>
-        <Close authType="default" />
-      </Provider>
-    );
-
-    const closeButton = screen.getByText(/Close/);
-    fireEvent.click(closeButton);
-
-    expect(screen.getByText(/Email:/)).toBeInTheDocument();
-    expect(screen.getByText(/test@example.com/)).toBeInTheDocument();
-    expect(screen.getByText(/Mobile:/)).toBeInTheDocument();
-    expect(screen.getByText(/1234567890/)).toBeInTheDocument();
-    expect(screen.getByText(/Ref No:/)).toBeInTheDocument();
-    expect(screen.getByText(/12345/)).toBeInTheDocument();
-  });
-});
-
- TestingLibraryElementError: Unable to find an element by: [data-testid="Close"]
-
-    Ignored nodes: comments, script, style
-    <body>
-      <div>
-        <div
-          class="close"
-          data-testid="close"
-        />
-      </div>
-    </body>
-
-      86 |     );
-      87 |
-    > 88 |     expect(screen.getByTestId("Close")).toBeInTheDocument();
-         |                   ^
-      89 |   });
+export default DynamicModel;
