@@ -1,287 +1,160 @@
 import React from "react";
-import "./model.scss";
-import { KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
-import { useDispatch, useSelector } from "react-redux";
-import { errorAction } from "../../../utils/store/error-slice";
-import {
-  dispatchLoader,
-  redirectingToIbanking,
-} from "../../../services/common-service";
-import DOMPurify from "dompurify";
-import { getUrl } from "../../../utils/common/change.utils";
-import { Player } from "@lottiefiles/react-lottie-player";
-import lottieSrc from "../../../assets/_json/lottie/oops.json";
-
-const DynamicModel = (props: KeyWithAnyModel) => {
-  const modelData = props.errorList;
-  const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
-  const dispatch = useDispatch();
-  const handlebuttonClick = () => {
-    if (props.errorList.error_type === "CancelApplication" || props.errorList.error_type === "cancelResume") {
-      if (
-        (getUrl.getParameterByName("SSCode") || (getUrl.getUpdatedStage().SScode != null && getUrl.getUpdatedStage().SScode !== "")|| getUrl.getParameterByName('transfer-token') ||  getUrl.getUpdatedStage().ccplChannel=== "IBK" || getUrl.getUpdatedStage().ccplChannel=== "MBNK") || 
-        (stageSelector && stageSelector[0] && stageSelector[0].stageInfo  && 
-          stageSelector[0].stageInfo.applicants && (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM"))
-      ) {
-        if (getUrl.getParameterByName("source") === "scm") {
-          //Ibanking redirection for app
-          window.location.href = `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
-        } else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
-          const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
-          window.location.href = redirectUrl;
-        } else {
-          redirectingToIbanking();
-        }
-      } else {
-        if(props.errorList.error_type === "cancelResume"){
-          window.location.href = `${process.env.REACT_APP_RESUME_URL}`;
-        }else{
-          window.location.href = `${process.env.REACT_APP_HOME_PAGE_URL}`;
-        }
-      }
-    } else if (props.handlebuttonClick) {
-      props.handlebuttonClick();
-    } else {
-      dispatch(dispatchLoader(false));
-      dispatch(errorAction.getExceptionList([]));
-    }
-  };
-
-  const getMarkup = (content: any) => {
-    return {
-      __html: DOMPurify.sanitize(content),
-    };
-  };
-
-  return (
-    <>
-      {modelData && modelData && (
-        <div className="popup">
-          <div className="popup__container">
-            <div className="waring__icon">
-              <Player src={lottieSrc} className="player" loop autoplay />
-            </div>
-            <div className="popup__info">
-              {modelData.error_header && (
-                <>
-                  {modelData.errorList &&
-                    modelData.errorList.application_reference && (
-                      <div className="app__ref">
-                        APPLICATION NO:{" "}
-                        {modelData.errorList.application_reference}
-                      </div>
-                    )}
-                  <div className="popup__info__head">
-                    {modelData.error_header}
-                  </div>
-                </>
-              )}
-              <div className="popup__info__desc">
-                {modelData.errorList.errors.map(
-                  (content: KeyWithAnyModel, index: number) => {
-                    return (
-                      <p key={`${content}${index}`}>
-                        {content.detail ? (
-                          <span
-                            dangerouslySetInnerHTML={getMarkup(content.detail)}
-                          />
-                        ) : (
-                          "Something went wrong!"
-                        )}
-                      </p>
-                    );
-                  }
-                )}
-                {modelData.error_button && (
-                  <p
-                    className="btn"
-                    onClick={() => handlebuttonClick()}
-                    key={`${modelData.error_button}`}
-                  >
-                    {modelData.error_button}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-export default DynamicModel;
-
-
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { Provider } from "react-redux";
+import thunk from "redux-thunk";
 import configureStore from "redux-mock-store";
-import DynamicModel from "../dynamic-model";
-import { errorAction } from "../../../utils/store/error-slice";
-import { dispatchLoader, redirectingToIbanking } from "../../../services/common-service";
+import Fields from "./fields";
 
-jest.mock("../../../utils/store/error-slice", () => ({
-  errorAction: {
-    getExceptionList: jest.fn(),
-  },
+
+const mockStore = configureStore([thunk]);
+jest.mock("axios", () => ({
+  __esModule: true,
 }));
-
-jest.mock("../../../services/common-service", () => ({
-  dispatchLoader: jest.fn(),
-  redirectingToIbanking: jest.fn(),
+jest.mock("@lottiefiles/react-lottie-player", () => ({
+  __esModule: true,
 }));
-
-jest.mock("../../../utils/common/change.utils", () => ({
-  getUrl: {
-    getParameterByName: jest.fn((param) => (param === "source" ? "scm" : null)),
-    getUpdatedStage: jest.fn(() => ({
-      SScode: "1234",
-      ccplChannel: "MBNK",
-    })),
-  },
+jest.mock('react-router-dom',()=>({
+  useNavigate:jest.fn(),
+  useLocation:jest.fn(),
 }));
+jest.mock("./fields.utils", () => ({
+  ...jest.requireActual("./fields.utils"),
+  stageFields: jest.fn().mockReturnValue("mocked-flow-type"), 
+  
 
-const mockStore = configureStore([]);
+}));
+jest.mock("./stage.utils", () => ({
+  ...jest.requireActual("./stage.utils"),
+  pageScrollTop: jest.fn().mockReturnValue("mocked-flow-type"), 
+  
 
-describe("DynamicModel Component", () => {
+}));
+const mockstageFields = jest.fn();
+
+
+describe("Fields Component - Comprehensive Test Coverage", () => {
   let store: any;
-  const mockHandleClick = jest.fn();
 
   beforeEach(() => {
     store = mockStore({
       stages: {
         stages: [
           {
+            stageId: "ad-1",
             stageInfo: {
+              products: [{ product_type: "280", product_category: "CC" }],
               applicants: {
-                auth_mode_a_1: "IX",
+                residential_address_a_1: "123 Street, City",
+                max_eligible_amount: 5000,
+                full_name_a_1: "John Doe",
+                embossed_dc_name: "",
+                Cpfcontributions: [],
               },
+              fieldMetaData:{
+               data:{
+                stages:[
+                  {
+                    stageId:"ad-1"},
+                   { stageId:"ld_1"
+                  },
+                ],
+               },
+              },
+              topupLookup: [{ id: 1, name: "TopUp1" }],
+              fields:[
+                {
+                  field_set_name:"group1",
+                  fieldname:"field1",
+                }
+              ],
             },
           },
         ],
+        userInput: {
+          applicants: {},
+        },
+        conditionalFields: { newFields: { field1: "value1" } },
+        dependencyFields: { workType: "employee" },
+        myinfoResponse: { someKey: "someValue" },
+        currentStage: "ad-1",
+        lastStageId: "ld-1",
+        journeyType: "ETC",
+        otpTrigger: { triggered: true },
       },
+      fields:[
+        {
+          field_set_name:"group1",
+          fieldname:"field1",
+        }
+      ],
+      valueUpdate: { value: true },
+      lov: { someLovKey: "someLovValue" },
+      tax: {
+        fields: ["tax_id_no_1", "crs_reason_code_1", "crs_comments_1"],
+      },
+      alias: {
+        fields: ["alias_field_1", "alias_field_2"],
+      },
+      referralcode: { code: "REF123" },
+      loanTopUp: {
+        existingLoanTopUp: true,
+        newLoanTopUp: false,
+      },
+      fielderror: {
+        mandatoryFields: ["field1", "field2"],
+      },
+      postalCode: {
+        showPopup: true,
+      },
+      bancaList: {
+        bancaDetails: { key1: "value1" },
+      },
+      error: { errorCode: "404", errorMessage: "Not Found" },
+      urlParam: {
+        resume: true,
+      },
+      // tax: {
+      //   fields: ["tax_field_1", "tax_field_2"],
+      // },
     });
   });
 
-  const mockErrorList = {
-    error_type: "CancelApplication",
-    error_header: "Error Occurred",
-    error_button: "Retry",
-    errorList: {
-      application_reference: "APP123",
-      errors: [
-        { detail: "<b>Test Error</b>" },
-        { detail: "Another error occurred." },
-      ],
-    },
-  };
-
-  it("should render the DynamicModel component", () => {
-    render(
+  it("renders correctly and initializes with default state", () => {
+    const { container } = render(
       <Provider store={store}>
-        <DynamicModel errorList={mockErrorList} />
+        <Fields 
+        stageFields ={mockstageFields}
+        selectedLeftMenu="menu1" />
       </Provider>
     );
 
-    expect(screen.getByText(/Error Occurred/)).toBeInTheDocument();
-    expect(screen.getByText(/APPLICATION NO: APP123/)).toBeInTheDocument();
-    expect(screen.getByText(/Retry/)).toBeInTheDocument();
-    expect(screen.getByText(/Another error occurred./)).toBeInTheDocument();
+    // Expect the initial state to set the correct stageId
+    expect(store.getActions()).toEqual([]);
+    expect(container).toBeTruthy();
   });
 
-  it("should sanitize and render error details", () => {
-    render(
-      <Provider store={store}>
-        <DynamicModel errorList={mockErrorList} />
-      </Provider>
-    );
+ TypeError: Cannot read properties of undefined (reading 'lastStageId')
 
-    const sanitizedContent = screen.getByText(/Test Error/);
-    expect(sanitizedContent).toBeInTheDocument();
-    expect(sanitizedContent.tagName).toBe("SPAN");
-  });
+      452 |       dispatch(
+      453 |         stagesAction.mergeLastStageInputs(
+    > 454 |           valueSelector.backNavigation.lastStageId
+          |                                        ^
+      455 |         )
+      456 |       );
+      457 |     }
 
-  it("should handle error button click for CancelApplication", () => {
-    render(
-      <Provider store={store}>
-        <DynamicModel errorList={mockErrorList} />
-      </Provider>
-    );
-
-    const retryButton = screen.getByText(/Retry/);
-    fireEvent.click(retryButton);
-
-    expect(redirectingToIbanking).toHaveBeenCalled();
-  });
-
-  it("should handle error button click with cancelResume and redirect to RESUME_URL", () => {
-    const mockErrorListCancelResume = { ...mockErrorList, error_type: "cancelResume" };
-    render(
-      <Provider store={store}>
-        <DynamicModel errorList={mockErrorListCancelResume} />
-      </Provider>
-    );
-
-    const retryButton = screen.getByText(/Retry/);
-    fireEvent.click(retryButton);
-
-    expect(window.location.href).toBe(process.env.REACT_APP_RESUME_URL);
-  });
-
-  it("should handle button click when handlebuttonClick prop is provided", () => {
-    render(
-      <Provider store={store}>
-        <DynamicModel errorList={mockErrorList} handlebuttonClick={mockHandleClick} />
-      </Provider>
-    );
-
-    const retryButton = screen.getByText(/Retry/);
-    fireEvent.click(retryButton);
-
-    expect(mockHandleClick).toHaveBeenCalled();
-  });
-
-  it("should dispatch loader and reset errors if no error type and no handlebuttonClick", () => {
-    render(
-      <Provider store={store}>
-        <DynamicModel errorList={{ ...mockErrorList, error_type: null }} />
-      </Provider>
-    );
-
-    const retryButton = screen.getByText(/Retry/);
-    fireEvent.click(retryButton);
-
-    expect(dispatchLoader).toHaveBeenCalledWith(false);
-    expect(errorAction.getExceptionList).toHaveBeenCalledWith([]);
-  });
-});
-
- TypeError: (0 , _change.authenticateType) is not a function
-
-      260 | }
-      261 | export const getStageCounts = () =>{
-    > 262 |   const flowType = authenticateType();
-          |                                    ^
-      263 |   return getTotalStep(flowType);
-      264 | }
-      265 |
-
-      at getStageCounts (src/utils/common/constants.ts:262:36)
-      at Object.getStageCounts (src/utils/common/constants.ts:266:30)
-      at Object.require (src/modules/dashboard/fields/stage.utils.ts:1:1)
-      at Object.require (src/services/common-service.ts:2:1)
-      at Object.require (src/shared/components/model/dynamic-model.tsx:6:1)
-      at Object.require (src/shared/components/model/dynamic-model.test.tsx:5:1)
-
- Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: undefined. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
-
-    Check the render method of `DynamicModel`.
-
-      89 |
-      90 |   it("should render the DynamicModel component", () => {
-    > 91 |     render(
-         |           ^
-      92 |       <Provider store={store}>
-      93 |         <DynamicModel errorList={mockErrorList} />
-      94 |       </Provider>
+      at lastStageId (src/modules/dashboard/fields/fields.tsx:454:40)
+      at commitHookEffectListMount (node_modules/react-dom/cjs/react-dom.development.js:23150:26)
+      at commitPassiveMountOnFiber (node_modules/react-dom/cjs/react-dom.development.js:24931:11)
+      at commitPassiveMountEffects_complete (node_modules/react-dom/cjs/react-dom.development.js:24891:9)
+      at commitPassiveMountEffects_begin (node_modules/react-dom/cjs/react-dom.development.js:24878:7)
+      at commitPassiveMountEffects (node_modules/react-dom/cjs/react-dom.development.js:24866:3)
+      at flushPassiveEffectsImpl (node_modules/react-dom/cjs/react-dom.development.js:27039:3)
+      at flushPassiveEffects (node_modules/react-dom/cjs/react-dom.development.js:26984:14)
+      at node_modules/react-dom/cjs/react-dom.development.js:26769:9
+      at flushActQueue (node_modules/react/cjs/react.development.js:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.js:180:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:266:10)
+      at Object.<anonymous> (src/modules/dashboard/fields/fields.test.tsx:123:33)
