@@ -398,3 +398,16 @@ jest.mock("../../../services/validation-service", () => ({
 jest.mock("../../../shared/components/loan-details-info/loan-details-info", () => () => (
   <div>Mocked LoanDetailsInfo</div>
 ));
+
+ TypeError: Cannot read properties of undefined (reading 'updatedStageInputs')
+
+      53 |
+      54 |       const stageIndex = getUrl
+    > 55 |         .getUpdatedStage()
+         |                           ^
+      56 |         .updatedStageInputs.findIndex(
+      57 |           (ref: any) => ref && ref.stageId === stageSelector[0].stageId
+      58 |         );
+
+      at getStoreValue (src/shared/components/button-group/button-group.tsx:55:27)
+      at getStoreValue (src/shared/components/button-group/button-group.tsx:95:23)
