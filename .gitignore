@@ -111,3 +111,148 @@ const DynamicModel = (props: KeyWithAnyModel) => {
 };
 
 export default DynamicModel;
+
+
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "redux-mock-store";
+import DynamicModel from "../dynamic-model";
+import { errorAction } from "../../../utils/store/error-slice";
+import { dispatchLoader, redirectingToIbanking } from "../../../services/common-service";
+
+jest.mock("../../../utils/store/error-slice", () => ({
+  errorAction: {
+    getExceptionList: jest.fn(),
+  },
+}));
+
+jest.mock("../../../services/common-service", () => ({
+  dispatchLoader: jest.fn(),
+  redirectingToIbanking: jest.fn(),
+}));
+
+jest.mock("../../../utils/common/change.utils", () => ({
+  getUrl: {
+    getParameterByName: jest.fn((param) => (param === "source" ? "scm" : null)),
+    getUpdatedStage: jest.fn(() => ({
+      SScode: "1234",
+      ccplChannel: "MBNK",
+    })),
+  },
+}));
+
+const mockStore = configureStore([]);
+
+describe("DynamicModel Component", () => {
+  let store: any;
+  const mockHandleClick = jest.fn();
+
+  beforeEach(() => {
+    store = mockStore({
+      stages: {
+        stages: [
+          {
+            stageInfo: {
+              applicants: {
+                auth_mode_a_1: "IX",
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  const mockErrorList = {
+    error_type: "CancelApplication",
+    error_header: "Error Occurred",
+    error_button: "Retry",
+    errorList: {
+      application_reference: "APP123",
+      errors: [
+        { detail: "<b>Test Error</b>" },
+        { detail: "Another error occurred." },
+      ],
+    },
+  };
+
+  it("should render the DynamicModel component", () => {
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={mockErrorList} />
+      </Provider>
+    );
+
+    expect(screen.getByText(/Error Occurred/)).toBeInTheDocument();
+    expect(screen.getByText(/APPLICATION NO: APP123/)).toBeInTheDocument();
+    expect(screen.getByText(/Retry/)).toBeInTheDocument();
+    expect(screen.getByText(/Another error occurred./)).toBeInTheDocument();
+  });
+
+  it("should sanitize and render error details", () => {
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={mockErrorList} />
+      </Provider>
+    );
+
+    const sanitizedContent = screen.getByText(/Test Error/);
+    expect(sanitizedContent).toBeInTheDocument();
+    expect(sanitizedContent.tagName).toBe("SPAN");
+  });
+
+  it("should handle error button click for CancelApplication", () => {
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={mockErrorList} />
+      </Provider>
+    );
+
+    const retryButton = screen.getByText(/Retry/);
+    fireEvent.click(retryButton);
+
+    expect(redirectingToIbanking).toHaveBeenCalled();
+  });
+
+  it("should handle error button click with cancelResume and redirect to RESUME_URL", () => {
+    const mockErrorListCancelResume = { ...mockErrorList, error_type: "cancelResume" };
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={mockErrorListCancelResume} />
+      </Provider>
+    );
+
+    const retryButton = screen.getByText(/Retry/);
+    fireEvent.click(retryButton);
+
+    expect(window.location.href).toBe(process.env.REACT_APP_RESUME_URL);
+  });
+
+  it("should handle button click when handlebuttonClick prop is provided", () => {
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={mockErrorList} handlebuttonClick={mockHandleClick} />
+      </Provider>
+    );
+
+    const retryButton = screen.getByText(/Retry/);
+    fireEvent.click(retryButton);
+
+    expect(mockHandleClick).toHaveBeenCalled();
+  });
+
+  it("should dispatch loader and reset errors if no error type and no handlebuttonClick", () => {
+    render(
+      <Provider store={store}>
+        <DynamicModel errorList={{ ...mockErrorList, error_type: null }} />
+      </Provider>
+    );
+
+    const retryButton = screen.getByText(/Retry/);
+    fireEvent.click(retryButton);
+
+    expect(dispatchLoader).toHaveBeenCalledWith(false);
+    expect(errorAction.getExceptionList).toHaveBeenCalledWith([]);
+  });
+});
