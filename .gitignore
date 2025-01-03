@@ -186,3 +186,171 @@ const ButtonGroup = (props: KeyWithAnyModel) => {
   );
 };
 export default ButtonGroup;
+
+
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "redux-mock-store";
+import ButtonGroup from "./button-group";
+import { loanTopUpAction } from "../../../utils/store/loan-topup-slice";
+
+const mockStore = configureStore([]);
+jest.mock("../../../utils/common/change.utils", () => ({
+  fieldIdAppend: jest.fn(() => "mockedFieldId"),
+  isFieldUpdate: jest.fn(),
+  getUrl: {
+    getUpdatedStage: jest.fn(() => ({
+      updatedStageInputs: [
+        {
+          stageId: "mockedStageId",
+          applicants: { required_annual_income_a_1: "50000" },
+        },
+      ],
+    })),
+  },
+  isFieldValueUpdate: jest.fn(),
+}));
+
+jest.mock("../../../services/validation-service", () => ({
+  formateCurrency: jest.fn((value) => `SGD ${value}`),
+}));
+
+describe("ButtonGroup Component", () => {
+  let store: any;
+  let props: any;
+
+  beforeEach(() => {
+    store = mockStore({
+      stages: {
+        userInput: {
+          applicants: {
+            loan_tenor_a_1: "12",
+            required_annual_income_a_1: "50000",
+            required_loan_amount_a_1: "10000",
+          },
+        },
+        stages: [
+          {
+            stageInfo: {
+              products: [
+                {
+                  product_type: "280",
+                },
+              ],
+              applicants: {
+                required_annual_income_a_1: "50000",
+              },
+            },
+          },
+        ],
+        lastStageId: "bd-3",
+        journeyType: "ETC",
+      },
+      loanTopUp: {
+        outstandingAmount: "2000",
+        existingLoanTopUp: true,
+        newLoanTopUp: false,
+      },
+    });
+
+    props = {
+      data: {
+        logical_field_name: "loan_tenor",
+        rwb_label_name: "Loan Tenor",
+      },
+      handleCallback: jest.fn(),
+      handleFieldDispatch: jest.fn(),
+    };
+  });
+
+  it("renders the component with default props", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    expect(screen.getByText("Loan Tenor")).toBeInTheDocument();
+  });
+
+  it("renders the top-up banner when existingCashone is true", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    expect(screen.getByText("Final Loan Amount")).toBeInTheDocument();
+    expect(screen.getByText("SGD 12000")).toBeInTheDocument();
+  });
+
+  it("calls updateTenureValue when a button is clicked", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    const button = screen.getByText("12");
+    fireEvent.click(button);
+
+    expect(props.handleCallback).toHaveBeenCalledWith(props.data, "12");
+  });
+
+  it("updates OSAValue when loanTopUpDetails.outstandingAmount changes", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    expect(screen.getByText("SGD 2000")).toBeInTheDocument();
+  });
+
+  it("dispatches the correct actions when a tenure is selected", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    const button = screen.getByText("12");
+    fireEvent.click(button);
+
+    const actions = store.getActions();
+    expect(actions).toEqual([
+      {
+        type: loanTopUpAction.settopupAmount.type,
+        payload: "12000",
+      },
+    ]);
+  });
+
+  it("handles compareOldAnnualIncome logic correctly for different stages", () => {
+    const localProps = {
+      ...props,
+      data: {
+        logical_field_name: "loan_tenor",
+      },
+    };
+
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...localProps} />
+      </Provider>
+    );
+
+    expect(props.handleCallback).toHaveBeenCalled();
+  });
+
+  it("renders LoanDetailsInfo for the loan_tenor field", () => {
+    render(
+      <Provider store={store}>
+        <ButtonGroup {...props} />
+      </Provider>
+    );
+
+    expect(screen.getByText("Loan Details")).toBeInTheDocument();
+  });
+});
