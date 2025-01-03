@@ -256,3 +256,20 @@ describe("DynamicModel Component", () => {
     expect(errorAction.getExceptionList).toHaveBeenCalledWith([]);
   });
 });
+
+ TypeError: (0 , _change.authenticateType) is not a function
+
+      260 | }
+      261 | export const getStageCounts = () =>{
+    > 262 |   const flowType = authenticateType();
+          |                                    ^
+      263 |   return getTotalStep(flowType);
+      264 | }
+      265 |
+
+      at getStageCounts (src/utils/common/constants.ts:262:36)
+      at Object.getStageCounts (src/utils/common/constants.ts:266:30)
+      at Object.require (src/modules/dashboard/fields/stage.utils.ts:1:1)
+      at Object.require (src/services/common-service.ts:2:1)
+      at Object.require (src/shared/components/model/dynamic-model.tsx:6:1)
+      at Object.require (src/shared/components/model/dynamic-model.test.tsx:5:1)
