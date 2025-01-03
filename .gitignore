@@ -411,3 +411,21 @@ describe("Close Component", () => {
     expect(screen.getByText(/12345/)).toBeInTheDocument();
   });
 });
+
+ TestingLibraryElementError: Unable to find an element by: [data-testid="Close"]
+
+    Ignored nodes: comments, script, style
+    <body>
+      <div>
+        <div
+          class="close"
+          data-testid="close"
+        />
+      </div>
+    </body>
+
+      86 |     );
+      87 |
+    > 88 |     expect(screen.getByTestId("Close")).toBeInTheDocument();
+         |                   ^
+      89 |   });
