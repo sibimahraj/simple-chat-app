@@ -242,3 +242,172 @@ const Close = (props:KeyWithAnyModel) => {
 };
 
 export default Close;
+
+
+import React from "react";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Provider } from "react-redux";
+import configureStore from "redux-mock-store";
+import Close from "../close";
+import trackEvents from "../../../services/track-events";
+import { submitRequest } from "../../../modules/dashboard/fields/fields.utils";
+
+jest.mock("../../../services/track-events", () => ({
+  triggerAdobeEvent: jest.fn(),
+}));
+
+jest.mock("../../../utils/common/change.utils", () => ({
+  getUrl: {
+    getParameterByName: jest.fn(),
+    getUpdatedStage: jest.fn(() => ({
+      ccplChannel: "MBNK",
+    })),
+    getChannelRefNo: jest.fn(() => ({
+      applicationRefNo: "12345",
+    })),
+  },
+}));
+
+jest.mock("../../../modules/dashboard/fields/fields.utils", () => ({
+  submitRequest: jest.fn(() => Promise.resolve(true)),
+}));
+
+jest.mock("../../../services/common-service", () => ({
+  redirectingToIbanking: jest.fn(),
+}));
+
+const mockStore = configureStore([]);
+
+describe("Close Component", () => {
+  let store: any;
+
+  beforeEach(() => {
+    store = mockStore({
+      stages: {
+        stages: [
+          {
+            stageInfo: {
+              applicants: {
+                email_a_1: "test@example.com",
+                mobile_number_a_1: "1234567890",
+                auth_mode_a_1: "IX",
+              },
+              application: {
+                application_reference: "appRef123",
+              },
+            },
+            stageId: "ssf-1",
+          },
+        ],
+        userInput: {},
+        journeyType: "mockJourney",
+      },
+      lov: {},
+      valueUpdate: {},
+      error: {},
+      bancaList: {
+        bancaDetails: {},
+      },
+    });
+  });
+
+  it("should render the Close component", () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    expect(screen.getByText(/Close/)).toBeInTheDocument();
+  });
+
+  it("should open the popup on logout click", () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    const closeButton = screen.getByText(/Close/);
+    fireEvent.click(closeButton);
+
+    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
+      "ctaClick",
+      "Close:formAbandonment"
+    );
+    expect(screen.getByText(/Cancel:formAbandonment/)).toBeInTheDocument();
+  });
+
+  it("should trigger the withoutSaveAndExit action", () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    const closeButton = screen.getByText(/Close/);
+    fireEvent.click(closeButton);
+
+    const withoutSaveButton = screen.getByText(/Yes/);
+    fireEvent.click(withoutSaveButton);
+
+    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
+      "formAbandonment",
+      "Exit"
+    );
+  });
+
+  it("should trigger the withSaveAndExit action", async () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    const closeButton = screen.getByText(/Close/);
+    fireEvent.click(closeButton);
+
+    const withSaveButton = screen.getByText(/Exit/);
+    fireEvent.click(withSaveButton);
+
+    expect(submitRequest).toHaveBeenCalled();
+    await expect(submitRequest).resolves.toBe(true);
+  });
+
+  it("should close the popup on Cancel click", () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    const closeButton = screen.getByText(/Close/);
+    fireEvent.click(closeButton);
+
+    const cancelButton = screen.getByText(/Cancel/);
+    fireEvent.click(cancelButton);
+
+    expect(trackEvents.triggerAdobeEvent).toHaveBeenCalledWith(
+      "ctaClick",
+      "Cancel:formAbandonment"
+    );
+  });
+
+  it("should display user details correctly", () => {
+    render(
+      <Provider store={store}>
+        <Close authType="default" />
+      </Provider>
+    );
+
+    const closeButton = screen.getByText(/Close/);
+    fireEvent.click(closeButton);
+
+    expect(screen.getByText(/Email:/)).toBeInTheDocument();
+    expect(screen.getByText(/test@example.com/)).toBeInTheDocument();
+    expect(screen.getByText(/Mobile:/)).toBeInTheDocument();
+    expect(screen.getByText(/1234567890/)).toBeInTheDocument();
+    expect(screen.getByText(/Ref No:/)).toBeInTheDocument();
+    expect(screen.getByText(/12345/)).toBeInTheDocument();
+  });
+});
