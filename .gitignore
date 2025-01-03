@@ -436,3 +436,16 @@ jest.mock("react-redux", () => ({
   }),
 }));
 
+
+ TypeError: Cannot read properties of undefined (reading 'mockReturnValue')
+
+      68 |
+      69 |   beforeEach(() => {
+    > 70 |     (getUrl.getParameterByName as jest.Mock).mockReturnValue(
+         |                                              ^
+      71 |         // {
+      72 |         //     updatedStageInputs: [
+      73 |         //       {
+
+      at Object.mockReturnValue (src/shared/components/button-group/button-group.test.tsx:70:46)
+
