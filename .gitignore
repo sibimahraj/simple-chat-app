@@ -1,462 +1,244 @@
-import React, { useEffect, useState } from "react";
-import { KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
-import "./button-group.scss";
+import React, { useState, useEffect } from "react";
+import "./close.scss";
+import PopupModel from "../popup-model/popup-model";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  fieldIdAppend,
-  isFieldUpdate,
-  getUrl,
-  isFieldValueUpdate,
-} from "../../../utils/common/change.utils";
-import LoanDetailsInfo from "../loan-details-info/loan-details-info";
-import loanDetailsConst from "../../../assets/_json/loan-details.json";
-import validateService from "../../../services/validation-service";
-import { loanTopUpAction } from "../../../utils/store/loan-topup-slice";
+import {KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
+import { getUrl } from "../../../utils/common/change.utils";
+import { submitRequest } from "../../../modules/dashboard/fields/fields.utils";
+import trackEvents from "../../../services/track-events";
+import { redirectingToIbanking } from "../../../services/common-service";
+import closeInfo from "../../../assets/_json/close.json";
 
-const ButtonGroup = (props: KeyWithAnyModel) => {
+const Close = (props:KeyWithAnyModel) => {
+  const [displayPopup, setdisplayPopup] = useState(false);
+  const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
+  const lovSelector = useSelector((state: StoreModel) => state.lov);
+  const userExitDetails = { emailId: null, mobile: null, appRef: null };
+  const [userDetails, setUserDetails] = useState(userExitDetails);
   const dispatch = useDispatch();
-  const [options, setOptions] = useState([{}]);
+  const applicantsSelector = useSelector(
+    (state: StoreModel) => state.stages.userInput.applicants
+  );
+  const valueSelector = useSelector((state: StoreModel) => state.valueUpdate);
+  const applicationJourney = useSelector(
+    (state: StoreModel) => state.stages.journeyType
+  );
   const userInputSelector = useSelector(
     (state: StoreModel) => state.stages.userInput
   );
-  const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
-  const lastStageSelector = useSelector((state: StoreModel) => state.stages.lastStageId);
-  const loanTopUpDetails =  useSelector((state: StoreModel) =>state.loanTopUp);
-  const [OSAValue, setOSAValue] = useState("");
-  const productCode = stageSelector[0].stageInfo.products[0].product_type;
-  const applicationJourney = useSelector((state: StoreModel) => state.stages.journeyType);
-  const existingCashone =  (productCode === '280' && applicationJourney === 'ETC') ? true : false;
-
-  useEffect(() =>{
-    if(existingCashone && loanTopUpDetails.outstandingAmount){
-      setOSAValue(validateService.formateCurrency(loanTopUpDetails.outstandingAmount));
-    }
-  },[loanTopUpDetails.outstandingAmount])
+  const errorSelector = useSelector((state: StoreModel) => state.error);
+  const bancaSelector = useSelector(
+    (state: StoreModel) => state.bancaList.bancaDetails
+  );
 
   useEffect(() => {
-    if (props.data.logical_field_name === "loan_tenor") {
-      const tenureOptions  = stageSelector[0].stageInfo.products[0].product_type === '280' ? loanDetailsConst.tenureOptions : loanDetailsConst.tenureOptionsCCFT;
-      setOptions(tenureOptions);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const getStoreValue = () => {
-    if (
-      stageSelector &&
-      stageSelector[0] &&
-      stageSelector[0].stageInfo &&
-      stageSelector[0].stageInfo.applicants
-    ) {
-      const userInputResponse =
-        userInputSelector.applicants[fieldIdAppend(props)];
-
-      const stageIndex = getUrl
-        .getUpdatedStage()
-        .updatedStageInputs.findIndex(
-          (ref: any) => ref && ref.stageId === stageSelector[0].stageId
-        );
-      let updatedVal = null;
-      if (stageIndex > -1) {
-        updatedVal =
-          getUrl.getUpdatedStage().updatedStageInputs[stageIndex].applicants[
-            fieldIdAppend(props)
-          ];
+    if (stageSelector && stageSelector.length > 0 ) {
+      if (stageSelector[0].stageInfo.applicants.email_a_1 !== null) {
+        setUserDetails((preuserDetails: any) => {
+          return {
+            ...preuserDetails,
+            emailId: stageSelector[0].stageInfo.applicants.email_a_1,
+            mobile: stageSelector[0].stageInfo.applicants.mobile_number_a_1,
+          };
+        });
       }
-
-      let fieldValue = "";
-      if (updatedVal) {
-        fieldValue = updatedVal;
-      } else if (userInputResponse) {
-        fieldValue = userInputResponse;
-      } else if (
-        stageSelector[0].stageInfo.applicants[fieldIdAppend(props)] &&
-        updatedVal !== ""
+      if (
+        stageSelector[0].stageInfo.application.application_reference !== null
       ) {
-        fieldValue =
-          stageSelector[0].stageInfo.applicants[fieldIdAppend(props)];
+        setUserDetails((preuserDetails: any) => {
+          return {
+            ...preuserDetails,
+            appRef: getUrl.getChannelRefNo().applicationRefNo!,
+          };
+        });
       }
-      return fieldValue;
     }
-    return "";
+  }, [stageSelector]);
+
+  const logout = () => {
+    setdisplayPopup(true);
+    trackEvents.triggerAdobeEvent("ctaClick", "Close:formAbandonment");
+    trackEvents.triggerAdobeEvent("popupViewed", closeInfo.closeParameters.exitAppText);
   };
 
-  useEffect(() => {
-    if(props.data.logical_field_name === "loan_tenor" && userInputSelector.applicants.loan_tenor_a_1){
-      props.handleCallback(props.data, userInputSelector.applicants.loan_tenor_a_1);
+  const withoutSaveAndExit = () => {
+    trackEvents.triggerAdobeEvent("formAbandonment", "Exit");
+    if (
+      stageSelector && 
+      stageSelector.length > 0  &&
+     (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM")
+    ) {
+      if (getUrl.getParameterByName("source") === "scm") {
+        //Ibanking redirection for app
+        const redirectUrl = getUrl.getParameterByName('transfer-token') ? `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}` : `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
+        window.location.href = redirectUrl;
+      }  else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
+        const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
+        window.location.href = redirectUrl;
+      } else {
+        redirectingToIbanking();
+      }
+    } else {
+      window.location.href = `${process.env.REACT_APP_HOME_PAGE_URL}`;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[userInputSelector.applicants.loan_tenor_a_1])
+  };
 
-  useEffect(() => {
-    if (userInputSelector.applicants.required_annual_income_a_1 || (existingCashone && (loanTopUpDetails.existingLoanTopUp || loanTopUpDetails.newLoanTopUp))) {
-      if (props.data.logical_field_name === "loan_tenor") {
-        const tenureOptions = stageSelector[0].stageInfo.products[0].product_type === '280' ? loanDetailsConst.tenureOptions : loanDetailsConst.tenureOptionsCCFT;
-        const value = getStoreValue();
-        const defaultTenor = (existingCashone && (loanTopUpDetails.existingLoanTopUp || loanTopUpDetails.newLoanTopUp)) ? true : compareOldAnnualIncome();
-        if (value && defaultTenor) {
-          props.handleFieldDispatch(props.data.logical_field_name, value);
-          dispatch(isFieldUpdate(props, value, props.data.logical_field_name));
-          props.handleCallback(props.data, value);
+  const withSaveAndExit = async () => {
+    const isPreserveCall = true;
+    const otpAuth = false;
+    const isExit = true
+    dispatch(
+      await submitRequest(
+        applicantsSelector,
+        stageSelector[0],
+        valueSelector,
+        applicationJourney,
+        userInputSelector,
+        lovSelector,
+        errorSelector,
+        otpAuth,
+        isPreserveCall,
+        isExit,
+        bancaSelector
+      )
+    ).then((response:any)=>{
+      if(response){
+        if (
+          stageSelector &&
+          (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM")
+        ) {
+          if (getUrl.getParameterByName("source") === "scm") {
+            //Ibanking redirection for app
+            window.location.href = `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
+          } else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
+            const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
+            window.location.href = redirectUrl;
+          } else {
+            redirectingToIbanking();
+          }
         } else {
-          props.handleFieldDispatch(props.data.logical_field_name, tenureOptions[0].value);
-          dispatch(isFieldUpdate(props, tenureOptions[0].value, props.data.logical_field_name));
-          props.handleCallback(props.data, tenureOptions[0].value);
+          window.location.href = `${process.env.REACT_APP_RESUME_URL}`;
         }
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userInputSelector.applicants.required_annual_income_a_1]);
-
-  const updateTenureValue = (value: string) => {
-    dispatch(isFieldUpdate(props, value, props.data.logical_field_name));
-    dispatch(isFieldValueUpdate(props, stageSelector, value));
-    props.handleCallback(props.data, value);
+    })
+    
   };
 
-  const compareOldAnnualIncome = () => {
-    if (lastStageSelector === "bd-3" || lastStageSelector === "doc" || lastStageSelector === "ad-2") {
-      if (stageSelector &&
-        stageSelector[0] &&
-        stageSelector[0].stageInfo &&
-        stageSelector[0].stageInfo.applicants) {
-          return (userInputSelector.applicants.required_annual_income_a_1 === stageSelector[0].stageInfo.applicants.required_annual_income_a_1);
-      }
-    } else if (lastStageSelector === "ssf-1" || lastStageSelector === "ssf-2" || lastStageSelector === "bd-1") {
-      const stageIndex = getUrl
-        .getUpdatedStage()
-        .updatedStageInputs.findIndex(
-          (ref: any) => ref && ref.stageId === stageSelector[0].stageId
-        );
-      let updatedVal = null;
-      if (stageIndex > -1) {
-        updatedVal =
-          getUrl.getUpdatedStage().updatedStageInputs[stageIndex].applicants['required_annual_income_a_1'];
-      }
-      return (userInputSelector.applicants.required_annual_income_a_1 === updatedVal);
-    } else {
-      return true
-    }
-  }
-
-  const topupAmount = () => {
-    const loanAmount = userInputSelector.applicants.required_loan_amount_a_1
-      ? parseFloat(userInputSelector.applicants.required_loan_amount_a_1)
-      : 0;     
-      let topup_Amount : any;
-    if (loanAmount && OSAValue) {
-      let finalAmnt = OSAValue.replaceAll(",", "");
-        topup_Amount = loanAmount + Number(finalAmnt);
-      }
-    if (topup_Amount > 0) {
-      dispatch(loanTopUpAction.settopupAmount(topup_Amount.toString()));
-      return validateService.formateCurrency(topup_Amount.toString());
-      }
-      else {
-        dispatch(loanTopUpAction.settopupAmount(0));
-        return 0.00;
-      }
+  const closePopup = (e: React.MouseEvent<HTMLElement>) => {
+    trackEvents.triggerAdobeEvent("ctaClick", "Cancel:formAbandonment");
+    setdisplayPopup(false);
+    e.stopPropagation();
   };
+
   return (
     <>
-    <div>
-      <div className="button-group" id={fieldIdAppend(props)}>
-        <label className="label" htmlFor={props.data.logical_field_name}>
-          {props.data.rwb_label_name}
-        </label>
-          {existingCashone && loanTopUpDetails.existingLoanTopUp && (<div className="topup-banner">
-            <div className="topup-amount">
-              <div>Final Loan Amount</div>
-              SGD {topupAmount()}
+      <div className="close" onClick={logout}>
+        {props.authType !== 'resume' && displayPopup && (
+          <PopupModel displayPopup={displayPopup}>
+            <div className="closeModal__container">
+              <div className="closeModal__img"></div>
+              {(stageSelector[0].stageId === "ssf-1" ||
+                stageSelector[0].stageId === "ssf-2") && (
+                <div className="closeModal__content">
+                  <div className="closeModal__header">
+                    {closeInfo.closeMessage.headText}
+                  </div>
+                  <div>{closeInfo.closeWithoutSave.exitAppText}</div>
+                </div>
+              )}
+              {stageSelector[0].stageId !== "ssf-1" &&
+                stageSelector[0].stageId !== "ssf-2" && (
+                  <div className="closeModal__content">
+                    <div>{closeInfo.closeParameters.exitAppText}</div>
+                    <div>
+                      {closeInfo.closeMessage.completLaterText}{" "}
+                      {closeInfo.closeMessage.linkText} {closeInfo.closeParameters.tobeComplete}
+                    </div>
+                    <div className="user__details">
+                      {userDetails.emailId !== null ? (
+                        <p>
+                          Email: <span>{userDetails.emailId}</span>
+                        </p>
+                      ) : (
+                        ""
+                      )}
+                      {userDetails.mobile !== null ? (
+                        <p>
+                          Mobile: <span>+{userDetails.mobile}</span>
+                        </p>
+                      ) : (
+                        ""
+                      )}
+                    </div>
+                    {userDetails.appRef !== null &&
+                    userDetails.appRef !== "" ? (
+                      <div className="app__ref">
+                        Ref No: {userDetails.appRef}
+                      </div>
+                    ) : (
+                      ""
+                    )}
+                  </div>
+                )}
+              <div className="closeModal__footer">
+                {(stageSelector[0].stageId === "ssf-1" ||
+                  stageSelector[0].stageId === "ssf-2") && (
+                  <button
+                    className="withoutSavenExit__btn"
+                    onClick={withoutSaveAndExit}
+                  >
+                    Yes
+                  </button>
+                )}
+                {stageSelector[0].stageId !== "ssf-1" &&
+                  stageSelector[0].stageId !== "ssf-2" && (
+                    <button
+                      className="withoutSavenExit__btn"
+                      onClick={withSaveAndExit}
+                    >
+                      Exit
+                    </button>
+                  )}
+                <button
+                  className="withSavenExit__btn"
+                  onClick={(e) => closePopup(e)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </PopupModel>
+        )}
+        {props.authType === 'resume' && displayPopup && (
+          <PopupModel displayPopup={displayPopup}>
+          <div className="closeModal__container">
+            <div className="closeModal__img"></div>
+              <div className="closeModal__content">
+                <div className="closeModal__header">
+                  {closeInfo.closeMessage.headText}
+                </div>
+              </div>
+            <div className="closeModal__footer">
+                <button
+                  className="withoutSavenExit__btn"
+                  onClick={withoutSaveAndExit}
+                >
+                  OK
+                </button>
+              
+              <button
+                className="withSavenExit__btn"
+                onClick={(e) => closePopup(e)}
+              >
+                Cancel
+              </button>
             </div>
           </div>
-          )}
-        <div className="buttons">
-          {options.map(
-            (btn: KeyWithAnyModel) => {
-              return(
-                <div className={`tenure-button ${btn.value === userInputSelector.applicants.loan_tenor_a_1 ? 'active' : ''}`}  onClick={()=> updateTenureValue(btn.value)}><span>{btn.label}</span></div>
-              )
-          })}
-         </div>
+        </PopupModel>
+        )}
       </div>
-      </div>
-      {props.data.logical_field_name === "loan_tenor" && <LoanDetailsInfo />}
     </>
   );
 };
-export default ButtonGroup;
 
-
-import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { Provider } from "react-redux";
-import configureStore from "redux-mock-store";
-import ButtonGroup from "./button-group";
-import { loanTopUpAction } from "../../../utils/store/loan-topup-slice";
-
-const mockStore = configureStore([]);
-jest.mock("../../../utils/common/change.utils", () => ({
-  fieldIdAppend: jest.fn(() => "mockedFieldId"),
-  isFieldUpdate: jest.fn(),
-  getUrl: {
-    getUpdatedStage: jest.fn(() => ({
-      updatedStageInputs: [
-        {
-          stageId: "mockedStageId",
-          applicants: { required_annual_income_a_1: "50000" },
-        },
-      ],
-    })),
-  },
-  isFieldValueUpdate: jest.fn(),
-}));
-
-jest.mock("../../../services/validation-service", () => ({
-  formateCurrency: jest.fn((value) => `SGD ${value}`),
-}));
-
-describe("ButtonGroup Component", () => {
-  let store: any;
-  let props: any;
-
-  beforeEach(() => {
-    store = mockStore({
-      stages: {
-        userInput: {
-          applicants: {
-            loan_tenor_a_1: "12",
-            required_annual_income_a_1: "50000",
-            required_loan_amount_a_1: "10000",
-          },
-        },
-        stages: [
-          {
-            stageInfo: {
-              products: [
-                {
-                  product_type: "280",
-                },
-              ],
-              applicants: {
-                required_annual_income_a_1: "50000",
-              },
-            },
-          },
-        ],
-        lastStageId: "bd-3",
-        journeyType: "ETC",
-      },
-      loanTopUp: {
-        outstandingAmount: "2000",
-        existingLoanTopUp: true,
-        newLoanTopUp: false,
-      },
-    });
-
-    props = {
-      data: {
-        logical_field_name: "loan_tenor",
-        rwb_label_name: "Loan Tenor",
-      },
-      handleCallback: jest.fn(),
-      handleFieldDispatch: jest.fn(),
-    };
-  });
-
-  it("renders the component with default props", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    expect(screen.getByText("Loan Tenor")).toBeInTheDocument();
-  });
-
-  it("renders the top-up banner when existingCashone is true", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    expect(screen.getByText("Final Loan Amount")).toBeInTheDocument();
-    expect(screen.getByText("SGD 12000")).toBeInTheDocument();
-  });
-
-  it("calls updateTenureValue when a button is clicked", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    const button = screen.getByText("12");
-    fireEvent.click(button);
-
-    expect(props.handleCallback).toHaveBeenCalledWith(props.data, "12");
-  });
-
-  it("updates OSAValue when loanTopUpDetails.outstandingAmount changes", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    expect(screen.getByText("SGD 2000")).toBeInTheDocument();
-  });
-
-  it("dispatches the correct actions when a tenure is selected", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    const button = screen.getByText("12");
-    fireEvent.click(button);
-
-    const actions = store.getActions();
-    expect(actions).toEqual([
-      {
-        type: loanTopUpAction.settopupAmount.type,
-        payload: "12000",
-      },
-    ]);
-  });
-
-  it("handles compareOldAnnualIncome logic correctly for different stages", () => {
-    const localProps = {
-      ...props,
-      data: {
-        logical_field_name: "loan_tenor",
-      },
-    };
-
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...localProps} />
-      </Provider>
-    );
-
-    expect(props.handleCallback).toHaveBeenCalled();
-  });
-
-  it("renders LoanDetailsInfo for the loan_tenor field", () => {
-    render(
-      <Provider store={store}>
-        <ButtonGroup {...props} />
-      </Provider>
-    );
-
-    expect(screen.getByText("Loan Details")).toBeInTheDocument();
-  });
-});
-
- TypeError: (0 , _change.authenticateType) is not a function
-
-      260 | }
-      261 | export const getStageCounts = () =>{
-    > 262 |   const flowType = authenticateType();
-          |                                    ^
-      263 |   return getTotalStep(flowType);
-      264 | }
-      265 |
-
-      at getStageCounts (src/utils/common/constants.ts:262:36)
-      at Object.getStageCounts (src/utils/common/constants.ts:266:30)
-      at Object.require (src/utils/adobe/constant.ts:3:1)
-      at Object.require (src/services/track-events.ts:5:1)
-      at Object.require (src/shared/components/model/model.tsx:4:1)
-      at Object.require (src/shared/components/loan-details-info/loan-details-info.tsx:8:1)
-      at Object.require (src/shared/components/button-group/button-group.tsx:11:1)
-
-
-jest.mock("../../../utils/common/change.utils", () => ({
-  fieldIdAppend: jest.fn(() => "mockedFieldId"),
-  isFieldUpdate: jest.fn(),
-  getUrl: {
-    getUpdatedStage: jest.fn(() => ({
-      updatedStageInputs: [
-        {
-          stageId: "mockedStageId",
-          applicants: { required_annual_income_a_1: "50000" },
-        },
-      ],
-    })),
-  },
-  isFieldValueUpdate: jest.fn(),
-  authenticateType: jest.fn(() => "mockedFlowType"), // Mocked authenticateType
-}));
-
-jest.mock("../../../services/validation-service", () => ({
-  formateCurrency: jest.fn((value) => `SGD ${value}`),
-}));
-
-jest.mock("../../../shared/components/loan-details-info/loan-details-info", () => () => (
-  <div>Mocked LoanDetailsInfo</div>
-));
-
- TypeError: Cannot read properties of undefined (reading 'updatedStageInputs')
-
-      53 |
-      54 |       const stageIndex = getUrl
-    > 55 |         .getUpdatedStage()
-         |                           ^
-      56 |         .updatedStageInputs.findIndex(
-      57 |           (ref: any) => ref && ref.stageId === stageSelector[0].stageId
-      58 |         );
-
-      at getStoreValue (src/shared/components/button-group/button-group.tsx:55:27)
-      at getStoreValue (src/shared/components/button-group/button-group.tsx:95:23)
-
-// Additional mocks for selectors
-jest.mock("react-redux", () => ({
-  useDispatch: jest.fn(),
-  useSelector: jest.fn((selector) => {
-    if (selector.name === "userInputSelector") {
-      return {
-        applicants: { loan_tenor_a_1: "12" },
-      };
-    }
-    if (selector.name === "stageSelector") {
-      return [
-        {
-          stageId: "mockedStageId",
-          stageInfo: {
-            applicants: { required_annual_income_a_1: "50000" },
-            products: [{ product_type: "280" }],
-          },
-        },
-      ];
-    }
-    return {};
-  }),
-}));
-
-
- TypeError: Cannot read properties of undefined (reading 'mockReturnValue')
-
-      68 |
-      69 |   beforeEach(() => {
-    > 70 |     (getUrl.getParameterByName as jest.Mock).mockReturnValue(
-         |                                              ^
-      71 |         // {
-      72 |         //     updatedStageInputs: [
-      73 |         //       {
-
-      at Object.mockReturnValue (src/shared/components/button-group/button-group.test.tsx:70:46)
-
-
- TypeError: (0 , _change.fieldIdAppend) is not a function
-
-      162 |     <>
-      163 |     <div>
-    > 164 |       <div className="button-group" id={fieldIdAppend(props)}>
-          |                                                      ^
-      165 |         <label className="label" htmlFor={props.data.logical_field_name}>
-      166 |           {props.data.rwb_label_name}
-      167 |         </label>
-
+export default Close;
