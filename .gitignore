@@ -411,3 +411,28 @@ jest.mock("../../../shared/components/loan-details-info/loan-details-info", () =
 
       at getStoreValue (src/shared/components/button-group/button-group.tsx:55:27)
       at getStoreValue (src/shared/components/button-group/button-group.tsx:95:23)
+
+// Additional mocks for selectors
+jest.mock("react-redux", () => ({
+  useDispatch: jest.fn(),
+  useSelector: jest.fn((selector) => {
+    if (selector.name === "userInputSelector") {
+      return {
+        applicants: { loan_tenor_a_1: "12" },
+      };
+    }
+    if (selector.name === "stageSelector") {
+      return [
+        {
+          stageId: "mockedStageId",
+          stageInfo: {
+            applicants: { required_annual_income_a_1: "50000" },
+            products: [{ product_type: "280" }],
+          },
+        },
+      ];
+    }
+    return {};
+  }),
+}));
+
