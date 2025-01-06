@@ -1,47 +1,113 @@
-# React Simple Chat Application
+import React from "react";
+import "./model.scss";
+import { KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
+import { useDispatch, useSelector } from "react-redux";
+import { errorAction } from "../../../utils/store/error-slice";
+import {
+  dispatchLoader,
+  redirectingToIbanking,
+} from "../../../services/common-service";
+import DOMPurify from "dompurify";
+import { getUrl } from "../../../utils/common/change.utils";
+import { Player } from "@lottiefiles/react-lottie-player";
+import lottieSrc from "../../../assets/_json/lottie/oops.json";
 
-This is a simple chat application built with React, Redux, and Socket.io for real-time communication.
+const DynamicModel = (props: KeyWithAnyModel) => {
+  const modelData = props.errorList;
+  const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
+  const dispatch = useDispatch();
+  const handlebuttonClick = () => {
+    if (props.errorList.error_type === "CancelApplication" || props.errorList.error_type === "cancelResume") {
+      if (
+        (getUrl.getParameterByName("SSCode") || (getUrl.getUpdatedStage().SScode != null && getUrl.getUpdatedStage().SScode !== "")|| getUrl.getParameterByName('transfer-token') ||  getUrl.getUpdatedStage().ccplChannel=== "IBK" || getUrl.getUpdatedStage().ccplChannel=== "MBNK") || 
+        (stageSelector && stageSelector[0] && stageSelector[0].stageInfo  && 
+          stageSelector[0].stageInfo.applicants && (stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IX" || stageSelector[0].stageInfo.applicants["auth_mode_a_1"] === "IM"))
+      ) {
+        if (getUrl.getParameterByName("source") === "scm") {
+          //Ibanking redirection for app
+          window.location.href = `${process.env.REACT_APP_IBANKING_SC_MOBILE}`;
+        } else if(getUrl.getUpdatedStage().ccplChannel=== "MBNK" || getUrl.getParameterByName("channel") === "MBNK") {
+          const redirectUrl =  `${process.env.REACT_APP_IBANKING_SC_MOBILE_TRANSFER}`;
+          window.location.href = redirectUrl;
+        } else {
+          redirectingToIbanking();
+        }
+      } else {
+        if(props.errorList.error_type === "cancelResume"){
+          window.location.href = `${process.env.REACT_APP_RESUME_URL}`;
+        }else{
+          window.location.href = `${process.env.REACT_APP_HOME_PAGE_URL}`;
+        }
+      }
+    } else if (props.handlebuttonClick) {
+      props.handlebuttonClick();
+    } else {
+      dispatch(dispatchLoader(false));
+      dispatch(errorAction.getExceptionList([]));
+    }
+  };
 
-## Getting Started
+  const getMarkup = (content: any) => {
+    return {
+      __html: DOMPurify.sanitize(content),
+    };
+  };
 
-Follow these instructions to set up and run the project locally.
+  return (
+    <>
+      {modelData && modelData && (
+        <div className="popup">
+          <div className="popup__container">
+            <div className="waring__icon">
+              <Player src={lottieSrc} className="player" loop autoplay />
+            </div>
+            <div className="popup__info">
+              {modelData.error_header && (
+                <>
+                  {modelData.errorList &&
+                    modelData.errorList.application_reference && (
+                      <div className="app__ref">
+                        APPLICATION NO:{" "}
+                        {modelData.errorList.application_reference}
+                      </div>
+                    )}
+                  <div className="popup__info__head">
+                    {modelData.error_header}
+                  </div>
+                </>
+              )}
+              <div className="popup__info__desc">
+                {modelData.errorList.errors.map(
+                  (content: KeyWithAnyModel, index: number) => {
+                    return (
+                      <p key={`${content}${index}`}>
+                        {content.detail ? (
+                          <span
+                            dangerouslySetInnerHTML={getMarkup(content.detail)}
+                          />
+                        ) : (
+                          "Something went wrong!"
+                        )}
+                      </p>
+                    );
+                  }
+                )}
+                {modelData.error_button && (
+                  <p
+                    className="btn"
+                    onClick={() => handlebuttonClick()}
+                    key={`${modelData.error_button}`}
+                  >
+                    {modelData.error_button}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
-### Prerequisites
-
-Make sure you have Node.js and npm installed on your machine.
-
-- Node.js: [Download and install Node.js](https://nodejs.org/)
-
-### Installing
-
-1. Clone the repository:
-
- 2. Install dependencies:
-   *Client (React Application):
-react: JavaScript library for building user interfaces.
-react-dom: React package for working with the DOM.
-react-redux: Official React bindings for Redux, used for state management.
-socket.io-client: Socket.io client for real-time communication.
-
-     *Server (Socket.io):
-    socket.io: Real-time bidirectional event-based communication library.
-
-    FontAwesome Icons:
-@fortawesome/fontawesome-free: Font Awesome library for icons.
-
-Installation:
-# Inside the 'client' directory
-npm install react react-dom react-redux redux redux-thunk socket.io-client
-
-# Inside the 'server' directory
-npm install express http socket.io
-
-# For development
-npm install --save-dev nodemon concurrently
-
-# For FontAwesome Icons
-npm install @fortawesome/fontawesome-free
-Additional Notes:
-Make sure to include the FontAwesome stylesheets while you are running the code.
-#How to run the server
-Open a new terminal type node server.js
+export default DynamicModel;
