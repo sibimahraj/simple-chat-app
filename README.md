@@ -1,3 +1,26 @@
+className={
+  (() => {
+    const selectedValues = userInputSelector.applicants["select_alt_addresses_a_1"]
+      ?.split(",") || []; // Convert comma-separated values to an array
+
+    const fieldToCheck = {
+      "Permanent Address": "PER",
+      "Alternate Address 1": "AL1",
+      "Alternate Address 2": "AL2",
+      "Alternate Address 3": "AL3",
+      "Alternate Address 4": "AL4",
+      "Alternate Address 5": "AL5",
+    };
+
+    return currentSection["field_set_name"] in fieldToCheck &&
+      !selectedValues.includes(fieldToCheck[currentSection["field_set_name"]])
+      ? "disable"
+      : "otherAddressToBottom";
+  })()
+}
+
+
+
 import React from "react";
 import "./model.scss";
 import { KeyWithAnyModel, StoreModel } from "../../../utils/model/common-model";
@@ -8,13 +31,7 @@ import {
   redirectingToIbanking,
 } from "../../../services/common-service";
 import DOMPurify from "dompurify";
-import { getUrl } from "../../../utils/common/change.utils";
-import { Player } from "@lottiefiles/react-lottie-player";
-import lottieSrc from "../../../assets/_json/lottie/oops.json";
-
-const DynamicModel = (props: KeyWithAnyModel) => {
-  const modelData = props.errorList;
-  const stageSelector = useSelector((state: StoreModel) => state.stages.stages);
+import { getUrl }  useSelector((state: StoreModel) => state.stages.stages);
   const dispatch = useDispatch();
   const handlebuttonClick = () => {
     if (props.errorList.error_type === "CancelApplication" || props.errorList.error_type === "cancelResume") {
@@ -98,7 +115,7 @@ const DynamicModel = (props: KeyWithAnyModel) => {
                     onClick={() => handlebuttonClick()}
                     key={`${modelData.error_button}`}
                   >
-                    {modelData.error_button}
+                    {}
                   </p>
                 )}
               </div>
